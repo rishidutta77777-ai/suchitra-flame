@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Suchitra Flame - Owner Admin App</title>
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#ea580c">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <style>
+    body { font-family: 'Segoe UI', system-ui, sans-serif; background-color: #f1f5f9; }
+    .flame-gradient { background: linear-gradient(135deg, #ea580c 0%, #c2410c 100%); }
+  </style>
+</head>
+<body class="pb-16">
+
+  <!-- Password Lock Screen -->
+  <div id="loginScreen" class="fixed inset-0 flame-gradient z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-sm text-center">
+      <i class="fa-solid fa-fire-flame-curved text-4xl text-orange-600 mb-2"></i>
+      <h1 class="text-xl font-extrabold text-slate-800">Suchitra Flame Admin</h1>
+      <p class="text-xs text-slate-500 mb-5">Enter Owner Password to manage orders & inventory</p>
+      <input type="password" id="adminPassInput" placeholder="Enter Password" class="w-full border rounded-lg px-3.5 py-2.5 text-sm mb-3 focus:outline-orange-500">
+      <button onclick="checkAdminLogin()" class="w-full flame-gradient text-white font-bold py-2.5 rounded-lg shadow">Unlock Dashboard</button>
+      <p id="loginErr" class="text-red-500 text-xs mt-2 hidden">Incorrect password!</p>
+    </div>
+  </div>
+
+  <!-- Top Admin Header -->
+  <header class="flame-gradient text-white shadow sticky top-0 z-30">
+    <div class="max-w-6xl mx-auto px-4 py-3 flex justify-between items-center">
+      <div class="flex items-center gap-2">
+        <i class="fa-solid fa-user-shield text-xl text-amber-300"></i>
+        <h1 class="text-lg font-extrabold">SUCHITRA FLAME • OWNER APP</h1>
+      </div>
+      <a href="index.html" class="bg-white/20 hover:bg-white/30 text-xs px-3 py-1.5 rounded-lg">View Customer Shop</a>
+    </div>
+  </header>
+
+  <main class="max-w-6xl mx-auto px-4 py-6 space-y-8">
+
+    <!-- 1. REVENUE & MONTHLY ANALYTICS -->
+    <section>
+      <h2 class="text-base font-bold text-slate-700 mb-3"><i class="fa-solid fa-chart-line text-orange-600 mr-1.5"></i>Revenue Tracker (Accepted Orders)</h2>
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div class="bg-white p-4 rounded-xl shadow-sm border-l-4 border-green-500">
+          <p class="text-xs text-slate-500 font-semibold uppercase">Today's Revenue</p>
+          <p id="todayRev" class="text-2xl font-extrabold text-slate-800 mt-1">₹0</p>
+        </div>
+        <div class="bg-white p-4 rounded-xl shadow-sm border-l-4 border-orange-500">
+          <p class="text-xs text-slate-500 font-semibold uppercase">Current Month Revenue</p>
+          <p id="monthRev" class="text-2xl font-extrabold text-slate-800 mt-1">₹0</p>
+        </div>
+        <div class="bg-white p-4 rounded-xl shadow-sm border-l-4 border-blue-500">
+          <p class="text-xs text-slate-500 font-semibold uppercase">Total All-Time Revenue</p>
+          <p id="totalRev" class="text-2xl font-extrabold text-slate-800 mt-1">₹0</p>
+        </div>
+      </div>
+
+      <!-- Month-by-Month Comparison Table -->
+      <div class="bg-white rounded-xl shadow-sm p-4 mt-4">
+        <h3 class="text-xs font-bold uppercase text-slate-500 mb-2">Month-by-Month Revenue Comparison</h3>
+        <div id="monthlyBreakdown" class="divide-y text-sm"></div>
+      </div>
+    </section>
+
+    <!-- 2. CUSTOMER ORDERS (ACCEPT ✓ / DECLINE ✗) -->
+    <section>
+      <h2 class="text-base font-bold text-slate-700 mb-3"><i class="fa-solid fa-bell text-orange-600 mr-1.5"></i>Customer COD Orders</h2>
+      <div id="ordersList" class="space-y-3"></div>
+    </section>
+
+    <!-- 3. UPLOAD / UPDATE PRODUCT INVENTORY -->
+    <section class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div class="bg-white p-5 rounded-xl shadow-sm h-fit">
+        <h2 class="text-base font-bold text-slate-800 mb-4"><i class="fa-solid fa-box-open text-orange-600 mr-1.5"></i>Add / Update Product</h2>
+        <form id="productForm" onsubmit="saveProduct(event)" class="space-y-3 text-sm">
+          <input type="hidden" id="editProductId">
+          <div>
+            <label class="font-semibold text-xs text-slate-600">Product Name *</label>
+            <input type="text" id="prodName" required placeholder="e.g., 2 Ltr Pressure Cooker" class="w-full border rounded-lg px-3 py-2 mt-1">
+          </div>
+          <div class="grid grid-cols-3 gap-2">
+            <div>
+              <label class="font-semibold text-xs text-slate-600">MRP (₹) *</label>
+              <input type="number" id="prodPrice" required oninput="calcFinalPrice()" placeholder="1500" class="w-full border rounded-lg px-3 py-2 mt-1">
+            </div>
+            <div>
+              <label class="font-semibold text-xs text-slate-600">Discount %</label>
+              <input type="number" id="prodDiscount" value="0" min="0" max="99" oninput="calcFinalPrice()" class="w-full border rounded-lg px-3 py-2 mt-1">
+            </div>
+            <div>
+              <label class="font-semibold text-xs text-slate-600">Final (₹)</label>
+              <input type="number" id="prodFinalPrice" readonly class="w-full border bg-orange-50 font-bold text-orange-700 rounded-lg px-3 py-2 mt-1">
+            </div>
+          </div>
+          <div>
+            <label class="font-semibold text-xs text-slate-600">Available Stock Quantity *</label>
+            <input type="number" id="prodStock" required min="0" placeholder="e.g., 15" class="w-full border rounded-lg px-3 py-2 mt-1">
+          </div>
+          <div>
+            <label class="font-semibold text-xs text-slate-600">Product Description</label>
+            <textarea id="prodDesc" rows="2" placeholder="ISI certified aluminium cooker, 5 year warranty..." class="w-full border rounded-lg px-3 py-2 mt-1"></textarea>
+          </div>
+          <div>
+            <label class="font-semibold text-xs text-slate-600">Product Photo (From Phone Gallery/Camera)</label>
+            <input type="file" id="prodImageInput" accept="image/*" onchange="compressImage(event)" class="w-full text-xs mt-1">
+            <img id="imgPreview" class="h-24 object-contain mt-2 hidden rounded border p-1">
+          </div>
+          <button type="submit" id="saveProdBtn" class="w-full flame-gradient text-white font-bold py-2.5 rounded-lg shadow">
+            Save to Live Shop
+          </button>
+        </form>
+      </div>
+
+      <!-- Live Stock Table -->
+      <div class="lg:col-span-2 bg-white p-5 rounded-xl shadow-sm">
+        <h2 class="text-base font-bold text-slate-800 mb-4"><i class="fa-solid fa-warehouse text-orange-600 mr-1.5"></i>Live Inventory & Stock Left</h2>
+        <div id="inventoryList" class="divide-y"></div>
+      </div>
+    </section>
+
+  </main>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+    import { getFirestore, collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyApSgjUgr4B3nux_i4gsyqduoXq2zPOP2A",
+      authDomain: "suchitra-flame.firebaseapp.com",
+      projectId: "suchitra-flame",
+      storageBucket: "suchitra-flame.firebasestorage.app",
+      messagingSenderId: "472312592738",
+      appId: "1:472312592738:web:fba7c0b644109718f2543b"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    let compressedBase64Image = "";
+    let productsCache = [];
+    let ordersCache = [];
+
+    window.checkAdminLogin = function() {
+      const pass = document.getElementById("adminPassInput").value;
+      if (pass === "Suchitra_flame@00794") {
+        document.getElementById("loginScreen").style.display = "none";
+        sessionStorage.setItem("sf_admin", "true");
+      } else {
+        document.getElementById("loginErr").classList.remove("hidden");
+      }
+    };
+    if (sessionStorage.getItem("sf_admin") === "true") {
+      document.getElementById("loginScreen").style.display = "none";
+    }
+
+    window.calcFinalPrice = function() {
+      const mrp = parseFloat(document.getElementById("prodPrice").value) || 0;
+      const disc = parseFloat(document.getElementById("prodDiscount").value) || 0;
+      const finalP = Math.round(mrp - (mrp * disc / 100));
+      document.getElementById("prodFinalPrice").value = finalP;
+    };
+
+    window.compressImage = function(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = function(event) {
+        const img = new Image();
+        img.onload = function() {
+          const canvas = document.createElement("canvas");
+          const MAX_WIDTH = 500;
+          const scale = MAX_WIDTH / img.width;
+          canvas.width = MAX_WIDTH;
+          canvas.height = img.height * scale;
+          const ctx = canvas.getContext("2d");
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+          compressedBase64Image = canvas.toDataURL("image/jpeg", 0.7);
+          const preview = document.getElementById("imgPreview");
+          preview.src = compressedBase64Image;
+          preview.classList.remove("hidden");
+        };
+        img.src = event.target.result;
+      };
+      reader.readAsDataURL(file);
+    };
+
+    window.saveProduct = async function(e) {
+      e.preventDefault();
+      const editId = document.getElementById("editProductId").value;
+      const payload = {
+        name: document.getElementById("prodName").value.trim(),
+        price: parseFloat(document.getElementById("prodPrice").value),
+        discount: parseFloat(document.getElementById("prodDiscount").value) || 0,
+        finalPrice: parseFloat(document.getElementById("prodFinalPrice").value),
+        stock: parseInt(document.getElementById("prodStock").value),
+        description: document.getElementById("prodDesc").value.trim()
+      };
+      if (compressedBase64Image) payload.image = compressedBase64Image;
+
+      if (editId) {
+        await updateDoc(doc(db, "products", editId), payload);
+      } else {
+        await addDoc(collection(db, "products"), payload);
+      }
+
+      document.getElementById("productForm").reset();
+      document.getElementById("editProductId").value = "";
+      document.getElementById("imgPreview").classList.add("hidden");
+      compressedBase64Image = "";
+      alert("Inventory Updated Successfully!");
+    };
+
+    window.editProduct = function(id) {
+      const p = productsCache.find(x => x.id === id);
+      if (!p) return;
+      document.getElementById("editProductId").value = p.id;
+      document.getElementById("prodName").value = p.name;
+      document.getElementById("prodPrice").value = p.price;
+      document.getElementById("prodDiscount").value = p.discount;
+      document.getElementById("prodFinalPrice").value = p.finalPrice;
+      document.getElementById("prodStock").value = p.stock;
+      document.getElementById("prodDesc").value = p.description || "";
+      window.scrollTo({ top: document.getElementById("productForm").offsetTop - 80, behavior: "smooth" });
+    };
+
+    window.deleteProduct = async function(id) {
+      if (confirm("Delete this product from shop?")) {
+        await deleteDoc(doc(db, "products", id));
+      }
+    };
+
+    onSnapshot(collection(db, "products"), (snap) => {
+      productsCache = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      const invEl = document.getElementById("inventoryList");
+      if (productsCache.length === 0) {
+        invEl.innerHTML = `<p class="text-sm text-slate-400 py-4">No items in inventory yet.</p>`;
+        return;
+      }
+      invEl.innerHTML = productsCache.map(p => `
+        <div class="py-3 flex items-center justify-between gap-3">
+          <div class="flex items-center gap-3">
+            <img src="${p.image || 'https://via.placeholder.com/60'}" class="w-12 h-12 object-contain border rounded">
+            <div>
+              <p class="font-bold text-slate-800 text-sm">${p.name}</p>
+              <p class="text-xs text-slate-500">₹${p.finalPrice} <span class="line-through">₹${p.price}</span> (${p.discount}% off)</p>
+            </div>
+          </div>
+          <div class="flex items-center gap-3">
+            <span class="px-2.5 py-1 rounded text-xs font-bold ${p.stock > 0 ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-700'}">
+              Stock: ${p.stock}
+            </span>
+            <button onclick="editProduct('${p.id}')" class="text-blue-600 text-xs font-bold">Edit</button>
+            <button onclick="deleteProduct('${p.id}')" class="text-red-500 text-xs font-bold">Delete</button>
+          </div>
+        </div>
+      `).join('');
+    });
+
+    onSnapshot(collection(db, "orders"), (snap) => {
+      ordersCache = snap.docs.map(d => ({ id: d.id, ...d.data() }))
+        .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+      renderOrders();
+      calculateRevenue();
+    });
+
+    function renderOrders() {
+      const list = document.getElementById("ordersList");
+      if (ordersCache.length === 0) {
+        list.innerHTML = `<div class="bg-white p-6 rounded-xl text-center text-slate-400 text-sm">No customer orders yet.</div>`;
+        return;
+      }
+      list.innerHTML = ordersCache.map(o => {
+        const badgeColor = o.status === "Accepted" ? "bg-green-100 text-green-800" :
+                           o.status === "Declined" ? "bg-red-100 text-red-800" : "bg-amber-100 text-amber-800";
+        return `
+          <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex flex-col md:flex-row justify-between gap-4">
+            <div class="space-y-1 text-sm">
+              <div class="flex items-center gap-2">
+                <span class="px-2.5 py-0.5 rounded-full text-xs font-bold ${badgeColor}">${o.status}</span>
+                <span class="text-xs text-slate-400">${new Date(o.createdAt).toLocaleString()}</span>
+              </div>
+              <p class="font-bold text-slate-800 text-base">${o.customerName} • <a href="tel:${o.customerPhone}" class="text-orange-600 underline">${o.customerPhone}</a></p>
+              <p class="text-xs text-slate-600"><i class="fa-solid fa-location-dot mr-1"></i>${o.customerAddress}</p>
+              <ul class="mt-2 bg-slate-50 p-2.5 rounded-lg border text-xs space-y-1">
+                ${o.items.map(i => `<li class="font-semibold text-slate-700">• ${i.name} — Qty: <b>${i.qty}</b> (₹${i.price * i.qty})</li>`).join('')}
+              </ul>
+              <p class="font-extrabold text-orange-600 pt-1">Total COD Bill: ₹${o.totalAmount}</p>
+            </div>
+
+            ${o.status === "Pending" ? `
+              <div class="flex md:flex-col justify-end gap-2">
+                <button onclick="handleOrderDecision('${o.id}', 'Accepted')" class="bg-green-600 hover:bg-green-700 text-white font-bold px-4 py-2.5 rounded-lg text-sm flex items-center justify-center gap-1.5 shadow">
+                  <i class="fa-solid fa-check"></i> Accept Order
+                </button>
+                <button onclick="handleOrderDecision('${o.id}', 'Declined')" class="bg-red-600 hover:bg-red-700 text-white font-bold px-4 py-2.5 rounded-lg text-sm flex items-center justify-center gap-1.5 shadow">
+                  <i class="fa-solid fa-xmark"></i> Decline
+                </button>
+              </div>
+            ` : ''}
+          </div>
+        `;
+      }).join('');
+    }
+
+    window.handleOrderDecision = async function(orderId, decision) {
+      const order = ordersCache.find(o => o.id === orderId);
+      if (!order) return;
+
+      if (decision === "Accepted") {
+        for (const item of order.items) {
+          const prodRef = doc(db, "products", item.productId);
+          const prodSnap = await getDoc(prodRef);
+          if (prodSnap.exists()) {
+            const currentStock = prodSnap.data().stock || 0;
+            const newStock = Math.max(0, currentStock - item.qty);
+            await updateDoc(prodRef, { stock: newStock });
+          }
+        }
+      }
+      await updateDoc(doc(db, "orders", orderId), { status: decision });
+    };
+
+    function calculateRevenue() {
+      const accepted = ordersCache.filter(o => o.status === "Accepted");
+      const todayStr = new Date().toISOString().slice(0, 10);
+      const currMonthStr = new Date().toISOString().slice(0, 7);
+
+      let todaySum = 0, monthSum = 0, totalSum = 0;
+      const monthlyMap = {};
+
+      accepted.forEach(o => {
+        const amt = Number(o.totalAmount) || 0;
+        const dateStr = o.createdAt.slice(0, 10);
+        const monthStr = o.createdAt.slice(0, 7);
+
+        totalSum += amt;
+        if (dateStr === todayStr) todaySum += amt;
+        if (monthStr === currMonthStr) monthSum += amt;
+
+        monthlyMap[monthStr] = (monthlyMap[monthStr] || 0) + amt;
+      });
+
+      document.getElementById("todayRev").innerText = `₹${todaySum}`;
+      document.getElementById("monthRev").innerText = `₹${monthSum}`;
+      document.getElementById("totalRev").innerText = `₹${totalSum}`;
+
+      const breakdownEl = document.getElementById("monthlyBreakdown");
+      const months = Object.keys(monthlyMap).sort().reverse();
+      breakdownEl.innerHTML = months.length === 0 
+        ? `<p class="text-xs text-slate-400 py-2">No accepted sales recorded yet.</p>`
+        : months.map(m => `
+            <div class="py-2 flex justify-between font-semibold text-slate-700">
+              <span>${m}</span>
+              <span class="text-green-700 font-bold">₹${monthlyMap[m]}</span>
+            </div>
+          `).join('');
+    }
+  </script>
+</body>
+</html>
