@@ -189,28 +189,39 @@
 
     window.saveProduct = async function(e) {
       e.preventDefault();
-      const editId = document.getElementById("editProductId").value;
-      const payload = {
-        name: document.getElementById("prodName").value.trim(),
-        price: parseFloat(document.getElementById("prodPrice").value),
-        discount: parseFloat(document.getElementById("prodDiscount").value) || 0,
-        finalPrice: parseFloat(document.getElementById("prodFinalPrice").value),
-        stock: parseInt(document.getElementById("prodStock").value),
-        description: document.getElementById("prodDesc").value.trim()
-      };
-      if (compressedBase64Image) payload.image = compressedBase64Image;
+      const btn = document.getElementById("saveProdBtn");
+      btn.disabled = true;
+      btn.innerText = "Saving...";
 
-      if (editId) {
-        await updateDoc(doc(db, "products", editId), payload);
-      } else {
-        await addDoc(collection(db, "products"), payload);
+      try {
+        const editId = document.getElementById("editProductId").value;
+        const payload = {
+          name: document.getElementById("prodName").value.trim(),
+          price: parseFloat(document.getElementById("prodPrice").value),
+          discount: parseFloat(document.getElementById("prodDiscount").value) || 0,
+          finalPrice: parseFloat(document.getElementById("prodFinalPrice").value),
+          stock: parseInt(document.getElementById("prodStock").value),
+          description: document.getElementById("prodDesc").value.trim()
+        };
+        if (compressedBase64Image) payload.image = compressedBase64Image;
+
+        if (editId) {
+          await updateDoc(doc(db, "products", editId), payload);
+        } else {
+          await addDoc(collection(db, "products"), payload);
+        }
+
+        document.getElementById("productForm").reset();
+        document.getElementById("editProductId").value = "";
+        document.getElementById("imgPreview").classList.add("hidden");
+        compressedBase64Image = "";
+        alert("Inventory Updated Successfully!");
+      } catch (err) {
+        alert("Error saving product: " + err.message);
+      } finally {
+        btn.disabled = false;
+        btn.innerText = "Save to Live Shop";
       }
-
-      document.getElementById("productForm").reset();
-      document.getElementById("editProductId").value = "";
-      document.getElementById("imgPreview").classList.add("hidden");
-      compressedBase64Image = "";
-      alert("Inventory Updated Successfully!");
     };
 
     window.editProduct = function(id) {
