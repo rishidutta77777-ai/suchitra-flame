@@ -40,12 +40,20 @@
 
   <main class="max-w-6xl mx-auto px-4 py-6 space-y-8">
 
-    <!-- 1. REVENUE & MONTHLY ANALYTICS -->
+    <!-- 1. REVENUE & MONTHLY ANALYTICS (DELIVERED ORDERS ONLY) -->
     <section>
-      <h2 class="text-base font-bold text-slate-700 mb-3"><i class="fa-solid fa-chart-line text-orange-600 mr-1.5"></i>Revenue Tracker (Accepted Orders)</h2>
+      <div class="flex flex-wrap justify-between items-center gap-2 mb-3">
+        <h2 class="text-base font-bold text-slate-700">
+          <i class="fa-solid fa-chart-line text-orange-600 mr-1.5"></i>Revenue Tracker (Counted Only on "Order Delivered")
+        </h2>
+        <button onclick="resetRevenueCalculator()" class="bg-red-600 hover:bg-red-700 text-white text-xs font-bold px-3 py-1.5 rounded-lg shadow flex items-center gap-1.5">
+          <i class="fa-solid fa-rotate-left"></i> Reset Revenue Calculator
+        </button>
+      </div>
+
       <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div class="bg-white p-4 rounded-xl shadow-sm border-l-4 border-green-500">
-          <p class="text-xs text-slate-500 font-semibold uppercase">Today's Revenue</p>
+          <p class="text-xs text-slate-500 font-semibold uppercase">Today's Delivered Revenue</p>
           <p id="todayRev" class="text-2xl font-extrabold text-slate-800 mt-1">₹0</p>
         </div>
         <div class="bg-white p-4 rounded-xl shadow-sm border-l-4 border-orange-500">
@@ -53,25 +61,28 @@
           <p id="monthRev" class="text-2xl font-extrabold text-slate-800 mt-1">₹0</p>
         </div>
         <div class="bg-white p-4 rounded-xl shadow-sm border-l-4 border-blue-500">
-          <p class="text-xs text-slate-500 font-semibold uppercase">Total All-Time Revenue</p>
+          <p class="text-xs text-slate-500 font-semibold uppercase">Total Delivered Revenue</p>
           <p id="totalRev" class="text-2xl font-extrabold text-slate-800 mt-1">₹0</p>
         </div>
       </div>
 
       <!-- Month-by-Month Comparison Table -->
       <div class="bg-white rounded-xl shadow-sm p-4 mt-4">
-        <h3 class="text-xs font-bold uppercase text-slate-500 mb-2">Month-by-Month Revenue Comparison</h3>
+        <div class="flex justify-between items-center mb-2">
+          <h3 class="text-xs font-bold uppercase text-slate-500">Month-by-Month Delivered Revenue</h3>
+          <span id="lastResetLabel" class="text-[11px] text-slate-400"></span>
+        </div>
         <div id="monthlyBreakdown" class="divide-y text-sm"></div>
       </div>
     </section>
 
-    <!-- 2. CUSTOMER ORDERS (ACCEPT ✓ / DECLINE ✗) -->
+    <!-- 2. CUSTOMER ORDERS & LIVE DELIVERY STATUS -->
     <section>
-      <h2 class="text-base font-bold text-slate-700 mb-3"><i class="fa-solid fa-bell text-orange-600 mr-1.5"></i>Customer COD Orders</h2>
+      <h2 class="text-base font-bold text-slate-700 mb-3"><i class="fa-solid fa-bell text-orange-600 mr-1.5"></i>Customer COD Orders & Live Status</h2>
       <div id="ordersList" class="space-y-3"></div>
     </section>
 
-    <!-- 3. UPLOAD / UPDATE PRODUCT INVENTORY -->
+    <!-- 3. UPLOAD / UPDATE PRODUCT INVENTORY (MULTI-IMAGE) -->
     <section class="grid grid-cols-1 lg:grid-cols-3 gap-6">
       <div class="bg-white p-5 rounded-xl shadow-sm h-fit">
         <h2 class="text-base font-bold text-slate-800 mb-4"><i class="fa-solid fa-box-open text-orange-600 mr-1.5"></i>Add / Update Product</h2>
@@ -104,13 +115,19 @@
             <textarea id="prodDesc" rows="2" placeholder="ISI certified aluminium cooker, 5 year warranty..." class="w-full border rounded-lg px-3 py-2 mt-1"></textarea>
           </div>
           <div>
-            <label class="font-semibold text-xs text-slate-600">Product Photo (From Phone Gallery/Camera)</label>
-            <input type="file" id="prodImageInput" accept="image/*" onchange="compressImage(event)" class="w-full text-xs mt-1">
-            <img id="imgPreview" class="h-24 object-contain mt-2 hidden rounded border p-1">
+            <label class="font-semibold text-xs text-slate-600">Product Photos (Select Multiple Pics)</label>
+            <input type="file" id="prodImageInput" accept="image/*" multiple onchange="compressMultipleImages(event)" class="w-full text-xs mt-1">
+            <p class="text-[11px] text-slate-400 mt-0.5">Tip: Tap & hold in gallery to select up to 5 photos</p>
+            <div id="imgPreviewContainer" class="flex flex-wrap gap-2 mt-2"></div>
           </div>
-          <button type="submit" id="saveProdBtn" class="w-full flame-gradient text-white font-bold py-2.5 rounded-lg shadow">
-            Save to Live Shop
-          </button>
+          <div class="flex gap-2">
+            <button type="submit" id="saveProdBtn" class="flex-1 flame-gradient text-white font-bold py-2.5 rounded-lg shadow">
+              Save to Live Shop
+            </button>
+            <button type="button" onclick="resetForm()" class="bg-slate-200 text-slate-700 font-semibold px-3 py-2.5 rounded-lg text-xs">
+              Clear
+            </button>
+          </div>
         </form>
       </div>
 
@@ -125,7 +142,7 @@
 
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-    import { getFirestore, collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+    import { getFirestore, collection, onSnapshot, addDoc, updateDoc, deleteDoc, setDoc, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
     const firebaseConfig = {
       apiKey: "AIzaSyApSgjUgr4B3nux_i4gsyqduoXq2zPOP2A",
@@ -139,9 +156,10 @@
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
 
-    let compressedBase64Image = "";
+    let uploadedImagesArray = [];
     let productsCache = [];
     let ordersCache = [];
+    let revenueResetTimestamp = null;
 
     window.checkAdminLogin = function() {
       const pass = document.getElementById("adminPassInput").value;
@@ -163,28 +181,57 @@
       document.getElementById("prodFinalPrice").value = finalP;
     };
 
-    window.compressImage = function(e) {
-      const file = e.target.files[0];
-      if (!file) return;
-      const reader = new FileReader();
-      reader.onload = function(event) {
-        const img = new Image();
-        img.onload = function() {
-          const canvas = document.createElement("canvas");
-          const MAX_WIDTH = 500;
-          const scale = MAX_WIDTH / img.width;
-          canvas.width = MAX_WIDTH;
-          canvas.height = img.height * scale;
-          const ctx = canvas.getContext("2d");
-          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-          compressedBase64Image = canvas.toDataURL("image/jpeg", 0.7);
-          const preview = document.getElementById("imgPreview");
-          preview.src = compressedBase64Image;
-          preview.classList.remove("hidden");
+    // Compress Multiple Images so they fit cleanly in Firestore
+    window.compressMultipleImages = async function(e) {
+      const files = Array.from(e.target.files).slice(0, 5);
+      if (!files.length) return;
+      uploadedImagesArray = [];
+      const container = document.getElementById("imgPreviewContainer");
+      container.innerHTML = `<span class="text-xs text-orange-600">Compressing ${files.length} photo(s)...</span>`;
+
+      const compressOne = (file) => new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          const img = new Image();
+          img.onload = () => {
+            const canvas = document.createElement("canvas");
+            const MAX_WIDTH = 450;
+            const scale = Math.min(1, MAX_WIDTH / img.width);
+            canvas.width = img.width * scale;
+            canvas.height = img.height * scale;
+            const ctx = canvas.getContext("2d");
+            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+            resolve(canvas.toDataURL("image/jpeg", 0.65));
+          };
+          img.src = event.target.result;
         };
-        img.src = event.target.result;
-      };
-      reader.readAsDataURL(file);
+        reader.readAsDataURL(file);
+      });
+
+      uploadedImagesArray = await Promise.all(files.map(compressOne));
+      renderImagePreviews();
+    };
+
+    function renderImagePreviews() {
+      const container = document.getElementById("imgPreviewContainer");
+      container.innerHTML = uploadedImagesArray.map((src, idx) => `
+        <div class="relative w-16 h-16 border rounded overflow-hidden bg-slate-50">
+          <img src="${src}" class="w-full h-full object-contain">
+          <button type="button" onclick="removePreviewImg(${idx})" class="absolute top-0 right-0 bg-red-600 text-white text-[10px] px-1 rounded-bl">&times;</button>
+        </div>
+      `).join('');
+    }
+
+    window.removePreviewImg = function(idx) {
+      uploadedImagesArray.splice(idx, 1);
+      renderImagePreviews();
+    };
+
+    window.resetForm = function() {
+      document.getElementById("productForm").reset();
+      document.getElementById("editProductId").value = "";
+      uploadedImagesArray = [];
+      document.getElementById("imgPreviewContainer").innerHTML = "";
     };
 
     window.saveProduct = async function(e) {
@@ -203,7 +250,10 @@
           stock: parseInt(document.getElementById("prodStock").value),
           description: document.getElementById("prodDesc").value.trim()
         };
-        if (compressedBase64Image) payload.image = compressedBase64Image;
+        if (uploadedImagesArray.length > 0) {
+          payload.images = uploadedImagesArray;
+          payload.image = uploadedImagesArray[0];
+        }
 
         if (editId) {
           await updateDoc(doc(db, "products", editId), payload);
@@ -211,10 +261,7 @@
           await addDoc(collection(db, "products"), payload);
         }
 
-        document.getElementById("productForm").reset();
-        document.getElementById("editProductId").value = "";
-        document.getElementById("imgPreview").classList.add("hidden");
-        compressedBase64Image = "";
+        resetForm();
         alert("Inventory Updated Successfully!");
       } catch (err) {
         alert("Error saving product: " + err.message);
@@ -234,6 +281,8 @@
       document.getElementById("prodFinalPrice").value = p.finalPrice;
       document.getElementById("prodStock").value = p.stock;
       document.getElementById("prodDesc").value = p.description || "";
+      uploadedImagesArray = p.images && p.images.length ? [...p.images] : (p.image ? [p.image] : []);
+      renderImagePreviews();
       window.scrollTo({ top: document.getElementById("productForm").offsetTop - 80, behavior: "smooth" });
     };
 
@@ -250,25 +299,50 @@
         invEl.innerHTML = `<p class="text-sm text-slate-400 py-4">No items in inventory yet.</p>`;
         return;
       }
-      invEl.innerHTML = productsCache.map(p => `
-        <div class="py-3 flex items-center justify-between gap-3">
-          <div class="flex items-center gap-3">
-            <img src="${p.image || 'https://via.placeholder.com/60'}" class="w-12 h-12 object-contain border rounded">
-            <div>
-              <p class="font-bold text-slate-800 text-sm">${p.name}</p>
-              <p class="text-xs text-slate-500">₹${p.finalPrice} <span class="line-through">₹${p.price}</span> (${p.discount}% off)</p>
+      invEl.innerHTML = productsCache.map(p => {
+        const imgs = p.images && p.images.length ? p.images : (p.image ? [p.image] : []);
+        return `
+          <div class="py-3 flex items-center justify-between gap-3">
+            <div class="flex items-center gap-3">
+              <div class="relative">
+                <img src="${imgs[0] || 'https://via.placeholder.com/60'}" class="w-12 h-12 object-contain border rounded">
+                ${imgs.length > 1 ? `<span class="absolute -bottom-1 -right-1 bg-slate-800 text-white text-[10px] px-1 rounded">${imgs.length} pics</span>` : ''}
+              </div>
+              <div>
+                <p class="font-bold text-slate-800 text-sm">${p.name}</p>
+                <p class="text-xs text-slate-500">₹${p.finalPrice} <span class="line-through">₹${p.price}</span> (${p.discount}% off)</p>
+              </div>
+            </div>
+            <div class="flex items-center gap-3">
+              <span class="px-2.5 py-1 rounded text-xs font-bold ${p.stock > 0 ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-700'}">
+                Stock: ${p.stock}
+              </span>
+              <button onclick="editProduct('${p.id}')" class="text-blue-600 text-xs font-bold">Edit</button>
+              <button onclick="deleteProduct('${p.id}')" class="text-red-500 text-xs font-bold">Delete</button>
             </div>
           </div>
-          <div class="flex items-center gap-3">
-            <span class="px-2.5 py-1 rounded text-xs font-bold ${p.stock > 0 ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-700'}">
-              Stock: ${p.stock}
-            </span>
-            <button onclick="editProduct('${p.id}')" class="text-blue-600 text-xs font-bold">Edit</button>
-            <button onclick="deleteProduct('${p.id}')" class="text-red-500 text-xs font-bold">Delete</button>
-          </div>
-        </div>
-      `).join('');
+        `;
+      }).join('');
     });
+
+    // Listen to Revenue Reset Settings
+    onSnapshot(doc(db, "settings", "revenueConfig"), (docSnap) => {
+      if (docSnap.exists()) {
+        revenueResetTimestamp = docSnap.data().resetAt || null;
+        document.getElementById("lastResetLabel").innerText = revenueResetTimestamp 
+          ? `Last Reset: ${new Date(revenueResetTimestamp).toLocaleString()}` : "";
+      }
+      calculateRevenue();
+    });
+
+    // Reset Revenue Calculator with Warning
+    window.resetRevenueCalculator = async function() {
+      const warn1 = confirm("⚠️ WARNING: Are you sure you want to RESET the Revenue Calculator back to ₹0?\n\nYour past orders will remain safe, but all revenue counters (Today, Monthly, Total) will restart from ₹0 right now.");
+      if (!warn1) return;
+      const nowIso = new Date().toISOString();
+      await setDoc(doc(db, "settings", "revenueConfig"), { resetAt: nowIso });
+      alert("✅ Revenue Calculator has been reset to ₹0.");
+    };
 
     onSnapshot(collection(db, "orders"), (snap) => {
       ordersCache = snap.docs.map(d => ({ id: d.id, ...d.data() }))
@@ -277,21 +351,36 @@
       calculateRevenue();
     });
 
+    function getStatusColor(status) {
+      if (status === "Order Delivered") return "bg-emerald-100 text-emerald-800 border border-emerald-300";
+      if (status === "Order Dispatched") return "bg-purple-100 text-purple-800";
+      if (status === "Order Packed") return "bg-blue-100 text-blue-800";
+      if (status === "Order Confirmed" || status === "Accepted") return "bg-teal-100 text-teal-800";
+      if (status === "Declined") return "bg-red-100 text-red-800";
+      return "bg-amber-100 text-amber-800";
+    }
+
     function renderOrders() {
       const list = document.getElementById("ordersList");
       if (ordersCache.length === 0) {
         list.innerHTML = `<div class="bg-white p-6 rounded-xl text-center text-slate-400 text-sm">No customer orders yet.</div>`;
         return;
       }
+
+      const stages = ["Order Confirmed", "Order Packed", "Order Dispatched", "Order Delivered"];
+
       list.innerHTML = ordersCache.map(o => {
-        const badgeColor = o.status === "Accepted" ? "bg-green-100 text-green-800" :
-                           o.status === "Declined" ? "bg-red-100 text-red-800" : "bg-amber-100 text-amber-800";
+        const badgeColor = getStatusColor(o.status);
+        const isAcceptedFlow = stages.includes(o.status) || o.status === "Accepted";
+        const currentStage = o.status === "Accepted" ? "Order Confirmed" : o.status;
+
         return `
           <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex flex-col md:flex-row justify-between gap-4">
-            <div class="space-y-1 text-sm">
-              <div class="flex items-center gap-2">
-                <span class="px-2.5 py-0.5 rounded-full text-xs font-bold ${badgeColor}">${o.status}</span>
-                <span class="text-xs text-slate-400">${new Date(o.createdAt).toLocaleString()}</span>
+            <div class="space-y-1 text-sm flex-1">
+              <div class="flex flex-wrap items-center gap-2">
+                <span class="px-2.5 py-0.5 rounded-full text-xs font-bold ${badgeColor}">${currentStage}</span>
+                <span class="text-xs text-slate-400">Placed: ${new Date(o.createdAt).toLocaleString()}</span>
+                ${o.deliveredAt ? `<span class="text-xs text-emerald-600 font-semibold">• Delivered: ${new Date(o.deliveredAt).toLocaleString()}</span>` : ''}
               </div>
               <p class="font-bold text-slate-800 text-base">${o.customerName} • <a href="tel:${o.customerPhone}" class="text-orange-600 underline">${o.customerPhone}</a></p>
               <p class="text-xs text-slate-600"><i class="fa-solid fa-location-dot mr-1"></i>${o.customerAddress}</p>
@@ -301,26 +390,38 @@
               <p class="font-extrabold text-orange-600 pt-1">Total COD Bill: ₹${o.totalAmount}</p>
             </div>
 
-            ${o.status === "Pending" ? `
-              <div class="flex md:flex-col justify-end gap-2">
-                <button onclick="handleOrderDecision('${o.id}', 'Accepted')" class="bg-green-600 hover:bg-green-700 text-white font-bold px-4 py-2.5 rounded-lg text-sm flex items-center justify-center gap-1.5 shadow">
+            <!-- Action Controls -->
+            <div class="flex flex-col justify-center gap-2 min-w-[210px]">
+              ${o.status === "Pending" ? `
+                <button onclick="handleInitialDecision('${o.id}', 'Order Confirmed')" class="bg-green-600 hover:bg-green-700 text-white font-bold px-4 py-2.5 rounded-lg text-sm flex items-center justify-center gap-1.5 shadow">
                   <i class="fa-solid fa-check"></i> Accept Order
                 </button>
-                <button onclick="handleOrderDecision('${o.id}', 'Declined')" class="bg-red-600 hover:bg-red-700 text-white font-bold px-4 py-2.5 rounded-lg text-sm flex items-center justify-center gap-1.5 shadow">
+                <button onclick="handleInitialDecision('${o.id}', 'Declined')" class="bg-red-600 hover:bg-red-700 text-white font-bold px-4 py-2.5 rounded-lg text-sm flex items-center justify-center gap-1.5 shadow">
                   <i class="fa-solid fa-xmark"></i> Decline
                 </button>
-              </div>
-            ` : ''}
+              ` : isAcceptedFlow ? `
+                <label class="text-[11px] font-bold uppercase text-slate-500">Update Delivery Status:</label>
+                <select onchange="updateDeliveryStage('${o.id}', this.value)" class="border-2 border-orange-500 rounded-lg px-3 py-2 text-sm font-bold text-slate-800 bg-orange-50 focus:outline-none">
+                  ${stages.map(st => `<option value="${st}" ${currentStage === st ? 'selected' : ''}>${st}</option>`).join('')}
+                </select>
+                <p class="text-[11px] text-slate-400">
+                  ${currentStage === 'Order Delivered' ? '✅ Counted in Revenue' : '⏳ Mark "Order Delivered" to add to revenue'}
+                </p>
+              ` : `
+                <span class="text-xs text-red-500 font-bold text-center">Order Declined (Stock Unchanged)</span>
+              `}
+            </div>
           </div>
         `;
       }).join('');
     }
 
-    window.handleOrderDecision = async function(orderId, decision) {
+    // Step 1: Accept (Deducts Stock & sets "Order Confirmed") or Decline
+    window.handleInitialDecision = async function(orderId, decision) {
       const order = ordersCache.find(o => o.id === orderId);
       if (!order) return;
 
-      if (decision === "Accepted") {
+      if (decision === "Order Confirmed") {
         for (const item of order.items) {
           const prodRef = doc(db, "products", item.productId);
           const prodSnap = await getDoc(prodRef);
@@ -331,21 +432,46 @@
           }
         }
       }
-      await updateDoc(doc(db, "orders", orderId), { status: decision });
+      await updateDoc(doc(db, "orders", orderId), { 
+        status: decision,
+        updatedAt: new Date().toISOString()
+      });
     };
 
+    // Step 2: Update Delivery Progress (Confirmed -> Packed -> Dispatched -> Delivered)
+    window.updateDeliveryStage = async function(orderId, newStage) {
+      const updatePayload = {
+        status: newStage,
+        updatedAt: new Date().toISOString()
+      };
+      if (newStage === "Order Delivered") {
+        updatePayload.deliveredAt = new Date().toISOString();
+      }
+      await updateDoc(doc(db, "orders", orderId), updatePayload);
+    };
+
+    // Revenue calculated ONLY for "Order Delivered" after last reset
     function calculateRevenue() {
-      const accepted = ordersCache.filter(o => o.status === "Accepted");
+      const deliveredOrders = ordersCache.filter(o => {
+        if (o.status !== "Order Delivered") return false;
+        const revTime = o.deliveredAt || o.updatedAt || o.createdAt;
+        if (revenueResetTimestamp && new Date(revTime) < new Date(revenueResetTimestamp)) {
+          return false;
+        }
+        return true;
+      });
+
       const todayStr = new Date().toISOString().slice(0, 10);
       const currMonthStr = new Date().toISOString().slice(0, 7);
 
       let todaySum = 0, monthSum = 0, totalSum = 0;
       const monthlyMap = {};
 
-      accepted.forEach(o => {
+      deliveredOrders.forEach(o => {
         const amt = Number(o.totalAmount) || 0;
-        const dateStr = o.createdAt.slice(0, 10);
-        const monthStr = o.createdAt.slice(0, 7);
+        const effectiveDate = o.deliveredAt || o.updatedAt || o.createdAt;
+        const dateStr = effectiveDate.slice(0, 10);
+        const monthStr = effectiveDate.slice(0, 7);
 
         totalSum += amt;
         if (dateStr === todayStr) todaySum += amt;
@@ -361,7 +487,7 @@
       const breakdownEl = document.getElementById("monthlyBreakdown");
       const months = Object.keys(monthlyMap).sort().reverse();
       breakdownEl.innerHTML = months.length === 0 
-        ? `<p class="text-xs text-slate-400 py-2">No accepted sales recorded yet.</p>`
+        ? `<p class="text-xs text-slate-400 py-2">No delivered orders recorded since last reset.</p>`
         : months.map(m => `
             <div class="py-2 flex justify-between font-semibold text-slate-700">
               <span>${m}</span>
