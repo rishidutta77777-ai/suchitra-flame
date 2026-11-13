@@ -76,9 +76,16 @@
       </div>
     </section>
 
-    <!-- 2. CUSTOMER ORDERS & LIVE DELIVERY STATUS -->
+    <!-- 2. CUSTOMER ORDERS & SEARCH BY ORDER ID -->
     <section>
-      <h2 class="text-base font-bold text-slate-700 mb-3"><i class="fa-solid fa-bell text-orange-600 mr-1.5"></i>Customer COD Orders & Live Status</h2>
+      <div class="flex flex-wrap justify-between items-center gap-3 mb-3">
+        <h2 class="text-base font-bold text-slate-700"><i class="fa-solid fa-bell text-orange-600 mr-1.5"></i>Customer COD Orders & Live Status</h2>
+        <div class="relative w-full sm:w-72">
+          <input type="text" id="adminOrderSearch" oninput="renderOrders()" placeholder="Search by Order ID (SF-...), Name or Phone" 
+                 class="w-full pl-9 pr-3 py-2 rounded-lg border border-slate-300 text-xs focus:outline-orange-500">
+          <i class="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-slate-400 text-xs"></i>
+        </div>
+      </div>
       <div id="ordersList" class="space-y-3"></div>
     </section>
 
@@ -133,9 +140,15 @@
 
       <!-- Live Stock Table -->
       <div class="lg:col-span-2 bg-white p-5 rounded-xl shadow-sm">
-        <h2 class="text-base font-bold text-slate-800 mb-4"><i class="fa-solid fa-warehouse text-orange-600 mr-1.5"></i>Live Inventory & Stock Left</h2>
+        <h2 class="text-base font-bold text-slate-800 mb-4"><i class="fa-solid fa-warehouse text-orange-600 mr-1.5"></i>Live Inventory & Stock Left (Admin Only)</h2>
         <div id="inventoryList" class="divide-y"></div>
       </div>
+    </section>
+
+    <!-- 4. CUSTOMER FEEDBACKS, STAR RATINGS & PHOTOS -->
+    <section>
+      <h2 class="text-base font-bold text-slate-700 mb-3"><i class="fa-solid fa-star text-amber-500 mr-1.5"></i>Customer Feedbacks & Product Photos</h2>
+      <div id="feedbacksList" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
     </section>
 
   </main>
@@ -159,6 +172,7 @@
     let uploadedImagesArray = [];
     let productsCache = [];
     let ordersCache = [];
+    let reviewsCache = [];
     let revenueResetTimestamp = null;
 
     window.checkAdminLogin = function() {
@@ -181,7 +195,6 @@
       document.getElementById("prodFinalPrice").value = finalP;
     };
 
-    // Compress Multiple Images so they fit cleanly in Firestore
     window.compressMultipleImages = async function(e) {
       const files = Array.from(e.target.files).slice(0, 5);
       if (!files.length) return;
@@ -315,7 +328,7 @@
             </div>
             <div class="flex items-center gap-3">
               <span class="px-2.5 py-1 rounded text-xs font-bold ${p.stock > 0 ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-700'}">
-                Stock: ${p.stock}
+                ${p.stock > 0 ? `Stock Left: ${p.stock}` : 'SOLD OUT (0)'}
               </span>
               <button onclick="editProduct('${p.id}')" class="text-blue-600 text-xs font-bold">Edit</button>
               <button onclick="deleteProduct('${p.id}')" class="text-red-500 text-xs font-bold">Delete</button>
@@ -325,7 +338,6 @@
       }).join('');
     });
 
-    // Listen to Revenue Reset Settings
     onSnapshot(doc(db, "settings", "revenueConfig"), (docSnap) => {
       if (docSnap.exists()) {
         revenueResetTimestamp = docSnap.data().resetAt || null;
@@ -335,7 +347,6 @@
       calculateRevenue();
     });
 
-    // Reset Revenue Calculator with Warning
     window.resetRevenueCalculator = async function() {
       const warn1 = confirm("⚠️ WARNING: Are you sure you want to RESET the Revenue Calculator back to ₹0?\n\nYour past orders will remain safe, but all revenue counters (Today, Monthly, Total) will restart from ₹0 right now.");
       if (!warn1) return;
@@ -351,6 +362,36 @@
       calculateRevenue();
     });
 
+    // Listen to Customer Feedbacks & Reviews
+    onSnapshot(collection(db, "reviews"), (snap) => {
+      reviewsCache = snap.docs.map(d => ({ id: d.id, ...d.data() }))
+        .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+      renderFeedbacks();
+    });
+
+    function renderFeedbacks() {
+      const list = document.getElementById("feedbacksList");
+      if (reviewsCache.length === 0) {
+        list.innerHTML = `<div class="col-span-full bg-white p-6 rounded-xl text-center text-slate-400 text-sm">No customer feedbacks submitted yet.</div>`;
+        return;
+      }
+      list.innerHTML = reviewsCache.map(r => `
+        <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex gap-3 justify-between">
+          <div class="space-y-1 text-xs">
+            <div class="flex items-center gap-2">
+              <span class="font-mono font-extrabold text-orange-600 bg-orange-50 px-2 py-0.5 rounded border border-orange-200">${r.orderCode || ''}</span>
+              <span class="text-amber-500 font-bold">${'★'.repeat(r.rating)}${'☆'.repeat(5 - r.rating)} (${r.rating}/5)</span>
+            </div>
+            <p class="font-bold text-slate-800 text-sm">${r.customerName} • <span class="text-slate-500 font-normal">${r.customerPhone || ''}</span></p>
+            <p class="text-[11px] text-slate-400">Items: ${(r.productNames || []).join(', ')}</p>
+            <p class="text-slate-700 bg-slate-50 p-2 rounded border mt-1">${r.comment}</p>
+            <p class="text-[10px] text-slate-400 pt-1">${new Date(r.createdAt).toLocaleString()}</p>
+          </div>
+          ${r.image ? `<img src="${r.image}" class="w-20 h-20 object-cover rounded-lg border shrink-0">` : ''}
+        </div>
+      `).join('');
+    }
+
     function getStatusColor(status) {
       if (status === "Order Delivered") return "bg-emerald-100 text-emerald-800 border border-emerald-300";
       if (status === "Order Dispatched") return "bg-purple-100 text-purple-800";
@@ -360,27 +401,37 @@
       return "bg-amber-100 text-amber-800";
     }
 
-    function renderOrders() {
+    window.renderOrders = function() {
       const list = document.getElementById("ordersList");
-      if (ordersCache.length === 0) {
-        list.innerHTML = `<div class="bg-white p-6 rounded-xl text-center text-slate-400 text-sm">No customer orders yet.</div>`;
+      const q = (document.getElementById("adminOrderSearch")?.value || "").trim().toLowerCase();
+
+      const filteredOrders = ordersCache.filter(o => {
+        const code = (o.orderCode || ("SF-" + o.id.slice(0, 6))).toLowerCase();
+        return code.includes(q) || 
+               (o.customerName && o.customerName.toLowerCase().includes(q)) || 
+               (o.customerPhone && o.customerPhone.includes(q));
+      });
+
+      if (filteredOrders.length === 0) {
+        list.innerHTML = `<div class="bg-white p-6 rounded-xl text-center text-slate-400 text-sm">No matching orders found.</div>`;
         return;
       }
 
       const stages = ["Order Confirmed", "Order Packed", "Order Dispatched", "Order Delivered"];
 
-      list.innerHTML = ordersCache.map(o => {
+      list.innerHTML = filteredOrders.map(o => {
         const badgeColor = getStatusColor(o.status);
         const isAcceptedFlow = stages.includes(o.status) || o.status === "Accepted";
         const currentStage = o.status === "Accepted" ? "Order Confirmed" : o.status;
+        const orderCode = o.orderCode || ("SF-" + o.id.slice(0, 6).toUpperCase());
 
         return `
           <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex flex-col md:flex-row justify-between gap-4">
             <div class="space-y-1 text-sm flex-1">
               <div class="flex flex-wrap items-center gap-2">
+                <span class="font-mono font-extrabold text-xs bg-slate-900 text-amber-300 px-2.5 py-0.5 rounded">${orderCode}</span>
                 <span class="px-2.5 py-0.5 rounded-full text-xs font-bold ${badgeColor}">${currentStage}</span>
                 <span class="text-xs text-slate-400">Placed: ${new Date(o.createdAt).toLocaleString()}</span>
-                ${o.deliveredAt ? `<span class="text-xs text-emerald-600 font-semibold">• Delivered: ${new Date(o.deliveredAt).toLocaleString()}</span>` : ''}
               </div>
               <p class="font-bold text-slate-800 text-base">${o.customerName} • <a href="tel:${o.customerPhone}" class="text-orange-600 underline">${o.customerPhone}</a></p>
               <p class="text-xs text-slate-600"><i class="fa-solid fa-location-dot mr-1"></i>${o.customerAddress}</p>
@@ -414,9 +465,8 @@
           </div>
         `;
       }).join('');
-    }
+    };
 
-    // Step 1: Accept (Deducts Stock & sets "Order Confirmed") or Decline
     window.handleInitialDecision = async function(orderId, decision) {
       const order = ordersCache.find(o => o.id === orderId);
       if (!order) return;
@@ -438,7 +488,6 @@
       });
     };
 
-    // Step 2: Update Delivery Progress (Confirmed -> Packed -> Dispatched -> Delivered)
     window.updateDeliveryStage = async function(orderId, newStage) {
       const updatePayload = {
         status: newStage,
@@ -450,7 +499,6 @@
       await updateDoc(doc(db, "orders", orderId), updatePayload);
     };
 
-    // Revenue calculated ONLY for "Order Delivered" after last reset
     function calculateRevenue() {
       const deliveredOrders = ordersCache.filter(o => {
         if (o.status !== "Order Delivered") return false;
