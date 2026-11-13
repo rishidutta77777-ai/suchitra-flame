@@ -26,24 +26,26 @@
         </div>
       </div>
 
-      <!-- Action Bar: Location, Phone, Email, Cart -->
+      <!-- Action Bar -->
       <div class="flex items-center gap-2 text-xs md:text-sm">
+        <button onclick="toggleTrackModal()" class="bg-white text-orange-700 font-bold px-3 py-2 rounded-lg flex items-center gap-1.5 shadow hover:bg-orange-50 transition">
+          <i class="fa-solid fa-truck-fast"></i>
+          <span>Track Order</span>
+        </button>
         <a href="https://maps.app.goo.gl/8jVVDeEBEJ1NQqNV7?g_st=ac" target="_blank" 
-           class="bg-white/20 hover:bg-white/30 px-3 py-2 rounded-lg flex items-center gap-1.5 transition">
+           class="bg-white/20 hover:bg-white/30 px-2.5 py-2 rounded-lg flex items-center gap-1 transition">
           <i class="fa-solid fa-location-dot text-amber-300"></i>
-          <span>Location</span>
+          <span class="hidden sm:inline">Map</span>
         </a>
         <a href="tel:+918638980963" 
-           class="bg-white/20 hover:bg-white/30 px-3 py-2 rounded-lg flex items-center gap-1.5 transition">
+           class="bg-white/20 hover:bg-white/30 px-2.5 py-2 rounded-lg flex items-center gap-1 transition">
           <i class="fa-solid fa-phone text-green-300"></i>
-          <span class="hidden sm:inline">+91 8638980963</span>
         </a>
         <a href="mailto:lkduttaghy@gmail.com" 
-           class="bg-white/20 hover:bg-white/30 px-3 py-2 rounded-lg flex items-center gap-1.5 transition">
+           class="bg-white/20 hover:bg-white/30 px-2.5 py-2 rounded-lg flex items-center gap-1 transition">
           <i class="fa-solid fa-envelope text-blue-200"></i>
-          <span class="hidden md:inline">Email</span>
         </a>
-        <button onclick="toggleCart()" class="bg-amber-400 hover:bg-amber-300 text-slate-900 font-bold px-3.5 py-2 rounded-lg flex items-center gap-2 shadow">
+        <button onclick="toggleCart()" class="bg-amber-400 hover:bg-amber-300 text-slate-900 font-bold px-3.5 py-2 rounded-lg flex items-center gap-1.5 shadow">
           <i class="fa-solid fa-cart-shopping"></i>
           <span id="cartCount">0</span>
         </button>
@@ -63,21 +65,67 @@
   <!-- Contact Strip -->
   <div class="bg-orange-50 border-b border-orange-200 text-orange-900 text-xs py-2 px-4">
     <div class="max-w-6xl mx-auto flex flex-wrap justify-between items-center gap-2">
-      <span><i class="fa-solid fa-truck-fast text-orange-600 mr-1"></i> Cash on Delivery (COD) Available</span>
-      <span><i class="fa-solid fa-headset text-orange-600 mr-1"></i> Call: <b>+91 8638980963</b> | <b>lkduttaghy@gmail.com</b></span>
+      <span><i class="fa-solid fa-box-check text-orange-600 mr-1"></i> Cash on Delivery Available | Use <b>Track Order</b> with your Order ID</span>
+      <span><i class="fa-solid fa-headset text-orange-600 mr-1"></i> <b>+91 8638980963</b> | <b>lkduttaghy@gmail.com</b></span>
     </div>
   </div>
 
   <!-- Main Product Grid -->
-  <main class="max-w-6xl mx-auto px-4 py-6">
-    <div id="loadingMsg" class="text-center py-12 text-slate-500">
-      <i class="fa-solid fa-spinner fa-spin text-3xl text-orange-600 mb-2"></i>
-      <p>Loading live inventory from Suchitra Flame...</p>
+  <main class="max-w-6xl mx-auto px-4 py-6 space-y-10">
+    <div>
+      <div id="loadingMsg" class="text-center py-12 text-slate-500">
+        <i class="fa-solid fa-spinner fa-spin text-3xl text-orange-600 mb-2"></i>
+        <p>Loading products from Suchitra Flame...</p>
+      </div>
+      <div id="productGrid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5"></div>
     </div>
-    <div id="productGrid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5"></div>
+
+    <!-- Customer Reviews Showcase -->
+    <section class="border-t pt-8">
+      <h2 class="text-lg font-extrabold text-slate-800 mb-4"><i class="fa-solid fa-star text-amber-400 mr-1.5"></i>Verified Customer Feedbacks</h2>
+      <div id="publicReviewsList" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4"></div>
+    </section>
   </main>
 
-  <!-- Cart & Checkout Drawer Modal -->
+  <!-- ORDER TRACKING & FEEDBACK MODAL -->
+  <div id="trackModal" class="fixed inset-0 bg-black/60 z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto p-5 shadow-2xl">
+      <div class="flex justify-between items-center border-b pb-3">
+        <h2 class="text-lg font-extrabold text-slate-800"><i class="fa-solid fa-magnifying-glass-location text-orange-600 mr-2"></i>Track Your Order</h2>
+        <button onclick="toggleTrackModal()" class="text-slate-400 hover:text-slate-700 text-2xl">&times;</button>
+      </div>
+
+      <div class="my-4 flex gap-2">
+        <input type="text" id="trackOrderIdInput" placeholder="Enter Order ID (e.g. SF-8K49P2)" class="flex-1 border rounded-lg px-3.5 py-2 text-sm uppercase font-mono">
+        <button onclick="searchOrderById()" class="flame-gradient text-white font-bold px-4 py-2 rounded-lg text-sm">Check Status</button>
+      </div>
+
+      <div id="trackResultBox" class="space-y-4"></div>
+    </div>
+  </div>
+
+  <!-- ORDER SUCCESS POPUP WITH ORDER ID -->
+  <div id="orderSuccessModal" class="fixed inset-0 bg-black/70 z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-sm w-full p-6 text-center shadow-2xl">
+      <div class="w-14 h-14 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-3 text-2xl">
+        <i class="fa-solid fa-check"></i>
+      </div>
+      <h3 class="text-lg font-extrabold text-slate-800">Order Placed Successfully!</h3>
+      <p class="text-xs text-slate-500 mt-1">Save your unique Order ID below to track delivery status and leave feedback:</p>
+      <div class="bg-orange-50 border-2 border-dashed border-orange-400 rounded-xl py-3 px-4 my-4">
+        <p class="text-[11px] uppercase text-orange-700 font-bold">Your Unique Order ID</p>
+        <p id="generatedOrderIdText" class="text-2xl font-mono font-extrabold text-slate-900 tracking-wider mt-0.5">SF-000000</p>
+      </div>
+      <button onclick="copyOrderId()" class="w-full bg-slate-800 text-white text-xs font-bold py-2.5 rounded-lg mb-2">
+        <i class="fa-regular fa-copy mr-1"></i> Copy Order ID
+      </button>
+      <button onclick="document.getElementById('orderSuccessModal').classList.add('hidden')" class="w-full flame-gradient text-white font-bold py-2.5 rounded-lg text-sm">
+        Done
+      </button>
+    </div>
+  </div>
+
+  <!-- CART DRAWER MODAL -->
   <div id="cartModal" class="fixed inset-0 bg-black/60 z-50 hidden flex justify-end">
     <div class="bg-white w-full max-w-md h-full flex flex-col justify-between overflow-y-auto p-5">
       <div>
@@ -86,10 +134,8 @@
           <button onclick="toggleCart()" class="text-slate-400 hover:text-slate-700 text-xl">&times;</button>
         </div>
 
-        <!-- Cart Items -->
-        <div id="cartItemsList" class="divide-y my-4 max-h-64 overflow-y-auto"></div>
+        <div id="cartItemsList" class="divide-y my-4 max-h-60 overflow-y-auto"></div>
 
-        <!-- Bill Summary -->
         <div class="bg-orange-50 p-3.5 rounded-lg border border-orange-200 mb-4">
           <div class="flex justify-between text-sm text-slate-600 mb-1">
             <span>Payment Mode:</span>
@@ -101,7 +147,6 @@
           </div>
         </div>
 
-        <!-- Customer Delivery Form -->
         <form id="checkoutForm" onsubmit="placeOrder(event)" class="space-y-3">
           <h3 class="font-bold text-sm text-slate-700">Delivery Details</h3>
           <input type="text" id="custName" required placeholder="Your Full Name" class="w-full border rounded-lg px-3 py-2 text-sm">
@@ -120,7 +165,7 @@
   <!-- Firebase & Store Logic -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-    import { getFirestore, collection, onSnapshot, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+    import { getFirestore, collection, onSnapshot, addDoc, updateDoc, doc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
     const firebaseConfig = {
       apiKey: "AIzaSyApSgjUgr4B3nux_i4gsyqduoXq2zPOP2A",
@@ -135,13 +180,36 @@
     const db = getFirestore(app);
 
     let allProducts = [];
+    let allOrders = [];
+    let allFeedbacks = [];
     let cart = {};
+    let feedbackCompressedImg = "";
 
     onSnapshot(collection(db, "products"), (snapshot) => {
-      allProducts = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      allProducts = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
       document.getElementById("loadingMsg").style.display = "none";
       renderProducts();
     });
+
+    onSnapshot(collection(db, "orders"), (snapshot) => {
+      allOrders = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+      if (!document.getElementById("trackModal").classList.contains("hidden")) {
+        const currentInput = document.getElementById("trackOrderIdInput").value.trim();
+        if (currentInput) searchOrderById();
+      }
+    });
+
+    onSnapshot(collection(db, "feedbacks"), (snapshot) => {
+      allFeedbacks = snapshot.docs.map(d => ({ id: d.id, ...d.data() }))
+        .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+      renderPublicReviews();
+    });
+
+    // Switch active image on product card
+    window.switchMainImage = function(prodId, imgSrc) {
+      const mainImg = document.getElementById(`main-img-${prodId}`);
+      if (mainImg) mainImg.src = imgSrc;
+    };
 
     window.renderProducts = function() {
       const grid = document.getElementById("productGrid");
@@ -151,23 +219,37 @@
       );
 
       if (filtered.length === 0) {
-        grid.innerHTML = `<div class="col-span-full text-center py-12 text-slate-500">No products available right now. Upload items from the Owner App!</div>`;
+        grid.innerHTML = `<div class="col-span-full text-center py-12 text-slate-500">No products available right now.</div>`;
         return;
       }
 
       grid.innerHTML = filtered.map(p => {
         const outOfStock = p.stock <= 0;
         const selectedQty = cart[p.id] || 1;
+        const photos = (p.images && p.images.length > 0) ? p.images : (p.image ? [p.image] : ['https://via.placeholder.com/300?text=Suchitra+Flame']);
+
         return `
           <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col justify-between hover:shadow-md transition">
             <div>
               <div class="relative h-48 bg-slate-100 flex items-center justify-center overflow-hidden">
-                <img src="${p.image || 'https://via.placeholder.com/300?text=Suchitra+Flame'}" alt="${p.name}" class="h-full w-full object-contain p-2">
+                <img id="main-img-${p.id}" src="${photos[0]}" alt="${p.name}" class="h-full w-full object-contain p-2">
                 ${p.discount > 0 ? `<span class="absolute top-2 left-2 bg-red-600 text-white text-xs font-bold px-2.5 py-1 rounded-full">-${p.discount}% OFF</span>` : ''}
-                <span class="absolute top-2 right-2 ${outOfStock ? 'bg-slate-700' : 'bg-green-600'} text-white text-[11px] font-semibold px-2 py-0.5 rounded">
-                  ${outOfStock ? 'Out of Stock' : `${p.stock} in stock`}
-                </span>
+                ${outOfStock 
+                  ? `<span class="absolute top-2 right-2 bg-red-600 text-white text-[11px] font-extrabold px-2.5 py-1 rounded shadow">SOLD OUT</span>`
+                  : `<span class="absolute top-2 right-2 bg-green-600 text-white text-[11px] font-semibold px-2 py-0.5 rounded">In Stock</span>`
+                }
               </div>
+
+              <!-- Multi-Photo Thumbnails -->
+              ${photos.length > 1 ? `
+                <div class="flex gap-1.5 px-3 pt-2 overflow-x-auto">
+                  ${photos.map(imgUrl => `
+                    <img src="${imgUrl}" onclick="switchMainImage('${p.id}', '${imgUrl}')" 
+                         class="w-10 h-10 object-cover rounded border hover:border-orange-600 cursor-pointer flex-shrink-0">
+                  `).join('')}
+                </div>
+              ` : ''}
+
               <div class="p-4">
                 <h3 class="font-bold text-slate-800 text-base line-clamp-1">${p.name}</h3>
                 <p class="text-xs text-slate-500 mt-1 line-clamp-2">${p.description || ''}</p>
@@ -180,7 +262,10 @@
 
             <div class="p-4 pt-0">
               ${outOfStock ? `
-                <button disabled class="w-full bg-slate-200 text-slate-500 font-bold py-2 rounded-lg text-sm cursor-not-allowed">Currently Unavailable</button>
+                <div class="bg-red-50 border border-red-300 text-red-700 rounded-lg p-2.5 text-center">
+                  <p class="text-xs font-extrabold uppercase"><i class="fa-solid fa-circle-exclamation mr-1"></i>SOLD OUT</p>
+                  <p class="text-[11px] font-medium mt-0.5">Item will be available after few days</p>
+                </div>
               ` : `
                 <div class="flex items-center gap-2">
                   <select id="qty-${p.id}" class="border rounded-lg px-2 py-2 text-sm bg-slate-50">
@@ -243,10 +328,19 @@
     }
 
     window.toggleCart = function() {
-      const modal = document.getElementById("cartModal");
-      modal.classList.toggle("hidden");
+      document.getElementById("cartModal").classList.toggle("hidden");
       updateCartUI();
     };
+
+    // Generate Unique Alphanumeric Order ID (e.g., SF-8K49P2)
+    function generateOrderCode() {
+      const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+      let code = "SF-";
+      for (let i = 0; i < 6; i++) {
+        code += chars.charAt(Math.floor(Math.random() * chars.length));
+      }
+      return code;
+    }
 
     window.placeOrder = async function(e) {
       e.preventDefault();
@@ -257,20 +351,16 @@
       btn.disabled = true;
       btn.innerText = "Placing Order...";
 
+      const uniqueOrderCode = generateOrderCode();
       const items = entries.map(([id, qty]) => {
         const p = allProducts.find(item => item.id === id);
-        return {
-          productId: id,
-          name: p.name,
-          qty: qty,
-          price: p.finalPrice
-        };
+        return { productId: id, name: p.name, qty: qty, price: p.finalPrice };
       });
-
       const totalAmount = items.reduce((sum, i) => sum + (i.price * i.qty), 0);
 
       try {
         await addDoc(collection(db, "orders"), {
+          orderCode: uniqueOrderCode,
           customerName: document.getElementById("custName").value.trim(),
           customerPhone: document.getElementById("custPhone").value.trim(),
           customerAddress: document.getElementById("custAddress").value.trim(),
@@ -278,14 +368,18 @@
           totalAmount: totalAmount,
           paymentMethod: "Cash on Delivery (COD)",
           status: "Pending",
+          reviewed: false,
           createdAt: new Date().toISOString(),
           timestamp: serverTimestamp()
         });
 
+        localStorage.setItem("last_sf_order", uniqueOrderCode);
         cart = {};
         document.getElementById("checkoutForm").reset();
         toggleCart();
-        alert("🎉 Order Placed Successfully! Suchitra Flame will deliver your items via Cash on Delivery.");
+
+        document.getElementById("generatedOrderIdText").innerText = uniqueOrderCode;
+        document.getElementById("orderSuccessModal").classList.remove("hidden");
       } catch (err) {
         alert("Failed to place order: " + err.message);
       } finally {
@@ -293,6 +387,166 @@
         btn.innerText = "Place COD Order Now";
       }
     };
+
+    window.copyOrderId = function() {
+      const code = document.getElementById("generatedOrderIdText").innerText;
+      navigator.clipboard.writeText(code);
+      alert("Order ID Copied: " + code);
+    };
+
+    // Track Order Modal & Live Stepper
+    window.toggleTrackModal = function() {
+      const modal = document.getElementById("trackModal");
+      modal.classList.toggle("hidden");
+      const savedOrder = localStorage.getItem("last_sf_order");
+      if (!modal.classList.contains("hidden") && savedOrder && !document.getElementById("trackOrderIdInput").value) {
+        document.getElementById("trackOrderIdInput").value = savedOrder;
+        searchOrderById();
+      }
+    };
+
+    window.searchOrderById = function() {
+      const code = document.getElementById("trackOrderIdInput").value.trim().toUpperCase();
+      const box = document.getElementById("trackResultBox");
+      if (!code) return;
+
+      const order = allOrders.find(o => (o.orderCode && o.orderCode.toUpperCase() === code) || o.id === code);
+      if (!order) {
+        box.innerHTML = `<div class="bg-red-50 text-red-700 p-4 rounded-xl text-sm font-semibold text-center">No order found with Order ID: <b>${code}</b></div>`;
+        return;
+      }
+
+      const stages = ["Order Confirmed", "Order Packed", "Order Dispatched", "Order Delivered"];
+      const currentIdx = stages.indexOf(order.status);
+
+      let statusHTML = "";
+      if (order.status === "Pending") {
+        statusHTML = `<div class="bg-amber-50 border border-amber-300 text-amber-800 p-3 rounded-xl text-xs font-bold">⏳ Order Placed — Waiting for Shop Owner Confirmation</div>`;
+      } else if (order.status === "Declined") {
+        statusHTML = `<div class="bg-red-50 border border-red-300 text-red-700 p-3 rounded-xl text-xs font-bold">❌ Order Declined by Shop</div>`;
+      } else {
+        statusHTML = `
+          <div class="space-y-2 my-3">
+            ${stages.map((st, idx) => {
+              const done = idx <= currentIdx;
+              return `
+                <div class="flex items-center gap-3 p-2 rounded-lg ${done ? 'bg-green-50 text-green-800 font-bold' : 'bg-slate-100 text-slate-400'} text-xs">
+                  <i class="fa-solid ${done ? 'fa-circle-check text-green-600' : 'fa-circle text-slate-300'} text-base"></i>
+                  <span>${st}</span>
+                </div>
+              `;
+            }).join('')}
+          </div>
+        `;
+      }
+
+      // Show Feedback Form if Delivered and not yet reviewed
+      let feedbackHTML = "";
+      if (order.status === "Order Delivered" && !order.reviewed) {
+        feedbackHTML = `
+          <form onsubmit="submitCustomerFeedback(event, '${order.id}', '${order.orderCode}', '${order.customerName}')" class="bg-orange-50 p-4 rounded-xl border border-orange-200 space-y-3 mt-4">
+            <h4 class="font-extrabold text-sm text-orange-900"><i class="fa-solid fa-star text-amber-500 mr-1"></i>Rate Your Delivered Order</h4>
+            <div>
+              <label class="text-xs font-bold text-slate-700">Star Rating</label>
+              <select id="fbStars" required class="w-full border rounded-lg px-3 py-2 text-sm mt-1 bg-white">
+                <option value="5">⭐⭐⭐⭐⭐ (5/5 - Excellent)</option>
+                <option value="4">⭐⭐⭐⭐ (4/5 - Good)</option>
+                <option value="3">⭐⭐⭐ (3/5 - Average)</option>
+                <option value="2">⭐⭐ (2/5 - Poor)</option>
+                <option value="1">⭐ (1/5 - Very Bad)</option>
+              </select>
+            </div>
+            <div>
+              <label class="text-xs font-bold text-slate-700">Your Feedback</label>
+              <textarea id="fbComment" required rows="2" placeholder="Share your experience with the product..." class="w-full border rounded-lg px-3 py-2 text-sm mt-1"></textarea>
+            </div>
+            <div>
+              <label class="text-xs font-bold text-slate-700">Upload Product Photo (Optional)</label>
+              <input type="file" accept="image/*" onchange="compressFeedbackPhoto(event)" class="w-full text-xs mt-1">
+            </div>
+            <button type="submit" class="w-full flame-gradient text-white font-bold py-2 rounded-lg text-xs shadow">Submit Feedback</button>
+          </form>
+        `;
+      } else if (order.reviewed) {
+        feedbackHTML = `<div class="bg-green-50 text-green-700 p-3 rounded-xl text-xs font-bold text-center mt-3">✅ Thank you for submitting your feedback!</div>`;
+      }
+
+      box.innerHTML = `
+        <div class="border rounded-xl p-4 bg-slate-50 text-sm space-y-2">
+          <div class="flex justify-between items-center">
+            <span class="font-mono font-extrabold text-orange-700">${order.orderCode || order.id}</span>
+            <span class="text-xs text-slate-500">${new Date(order.createdAt).toLocaleDateString()}</span>
+          </div>
+          <p class="font-bold text-slate-800">${order.customerName} (${order.customerPhone})</p>
+          <ul class="text-xs text-slate-600 space-y-1 border-t pt-2">
+            ${order.items.map(i => `<li>• ${i.name} × ${i.qty} (₹${i.price * i.qty})</li>`).join('')}
+          </ul>
+          <p class="font-extrabold text-slate-900 pt-1">Total COD: ₹${order.totalAmount}</p>
+          ${statusHTML}
+          ${feedbackHTML}
+        </div>
+      `;
+    };
+
+    window.compressFeedbackPhoto = function(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = function(ev) {
+        const img = new Image();
+        img.onload = function() {
+          const canvas = document.createElement("canvas");
+          const MAX_W = 450;
+          const scale = MAX_W / img.width;
+          canvas.width = MAX_W;
+          canvas.height = img.height * scale;
+          canvas.getContext("2d").drawImage(img, 0, 0, canvas.width, canvas.height);
+          feedbackCompressedImg = canvas.toDataURL("image/jpeg", 0.7);
+        };
+        img.src = ev.target.result;
+      };
+      reader.readAsDataURL(file);
+    };
+
+    window.submitCustomerFeedback = async function(e, docId, orderCode, custName) {
+      e.preventDefault();
+      const stars = parseInt(document.getElementById("fbStars").value);
+      const comment = document.getElementById("fbComment").value.trim();
+
+      await addDoc(collection(db, "feedbacks"), {
+        orderId: docId,
+        orderCode: orderCode,
+        customerName: custName,
+        stars: stars,
+        comment: comment,
+        image: feedbackCompressedImg || "",
+        createdAt: new Date().toISOString()
+      });
+
+      await updateDoc(doc(db, "orders", docId), { reviewed: true });
+      feedbackCompressedImg = "";
+      alert("🌟 Thank you! Your review has been posted.");
+      searchOrderById();
+    };
+
+    function renderPublicReviews() {
+      const el = document.getElementById("publicReviewsList");
+      if (allFeedbacks.length === 0) {
+        el.innerHTML = `<p class="text-xs text-slate-400 col-span-full">No customer reviews yet. Order and be the first to review!</p>`;
+        return;
+      }
+      el.innerHTML = allFeedbacks.map(f => `
+        <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm space-y-2 text-sm">
+          <div class="flex justify-between items-center">
+            <span class="font-bold text-slate-800">${f.customerName}</span>
+            <span class="text-amber-500 text-xs">${"★".repeat(f.stars)}${"☆".repeat(5 - f.stars)}</span>
+          </div>
+          <p class="text-xs text-slate-600">${f.comment}</p>
+          ${f.image ? `<img src="${f.image}" class="h-28 w-full object-contain rounded border bg-slate-50 p-1">` : ''}
+          <p class="text-[10px] text-slate-400">Verified Order: ${f.orderCode}</p>
+        </div>
+      `).join('');
+    }
 
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('sw.js');
