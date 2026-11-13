@@ -40,7 +40,7 @@
         </a>
         <button onclick="toggleTrackModal()" class="bg-white/20 hover:bg-white/30 px-3 py-2 rounded-lg flex items-center gap-1.5 font-semibold transition">
           <i class="fa-solid fa-truck-fast text-amber-200"></i>
-          <span>Track Orders</span>
+          <span>Track Order / Review</span>
         </button>
         <button onclick="toggleCart()" class="bg-amber-400 hover:bg-amber-300 text-slate-900 font-bold px-3.5 py-2 rounded-lg flex items-center gap-2 shadow">
           <i class="fa-solid fa-cart-shopping"></i>
@@ -71,23 +71,46 @@
   <main class="max-w-6xl mx-auto px-4 py-6">
     <div id="loadingMsg" class="text-center py-12 text-slate-500">
       <i class="fa-solid fa-spinner fa-spin text-3xl text-orange-600 mb-2"></i>
-      <p>Loading live inventory from Suchitra Flame...</p>
+      <p>Loading live products from Suchitra Flame...</p>
     </div>
     <div id="productGrid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5"></div>
   </main>
 
-  <!-- Track My Orders Modal (Live Status Reflection) -->
+  <!-- Order Success & Unique Order ID Modal -->
+  <div id="orderSuccessModal" class="fixed inset-0 bg-black/70 z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-sm w-full p-6 text-center shadow-2xl space-y-4">
+      <div class="w-14 h-14 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto text-2xl">
+        <i class="fa-solid fa-check"></i>
+      </div>
+      <h2 class="text-xl font-extrabold text-slate-800">Order Placed Successfully!</h2>
+      <p class="text-xs text-slate-500">Save your unique Order ID below to track live delivery status:</p>
+      <div class="bg-orange-50 border-2 border-dashed border-orange-400 rounded-xl p-3">
+        <p class="text-[11px] uppercase text-slate-500 font-bold">Your Unique Order ID</p>
+        <p id="generatedOrderIdDisplay" class="text-2xl font-mono font-extrabold text-orange-600 tracking-wider mt-0.5">SF-XXXXXX</p>
+      </div>
+      <div class="flex gap-2">
+        <button onclick="copyOrderId()" class="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold py-2.5 rounded-lg text-xs">
+          <i class="fa-regular fa-copy mr-1"></i> Copy Order ID
+        </button>
+        <button onclick="closeSuccessAndTrack()" class="flex-1 flame-gradient text-white font-bold py-2.5 rounded-lg text-xs">
+          Track Status
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Track My Orders & Leave Feedback Modal -->
   <div id="trackModal" class="fixed inset-0 bg-black/60 z-50 hidden flex items-center justify-center p-4">
-    <div class="bg-white w-full max-w-lg rounded-2xl shadow-xl p-5 max-h-[85vh] flex flex-col">
+    <div class="bg-white w-full max-w-lg rounded-2xl shadow-xl p-5 max-h-[88vh] flex flex-col">
       <div class="flex justify-between items-center border-b pb-3">
-        <h2 class="text-lg font-bold text-slate-800"><i class="fa-solid fa-box text-orange-600 mr-2"></i>Track Your Live Order Status</h2>
+        <h2 class="text-lg font-bold text-slate-800"><i class="fa-solid fa-box text-orange-600 mr-2"></i>Track Order & Leave Feedback</h2>
         <button onclick="toggleTrackModal()" class="text-slate-400 hover:text-slate-700 text-2xl">&times;</button>
       </div>
       <div class="my-3 flex gap-2">
-        <input type="tel" id="trackPhoneInput" placeholder="Enter your 10-digit mobile number" class="flex-1 border rounded-lg px-3 py-2 text-sm">
-        <button onclick="searchCustomerOrders()" class="flame-gradient text-white font-bold px-4 py-2 rounded-lg text-sm">Track</button>
+        <input type="text" id="trackSearchInput" placeholder="Enter Order ID (e.g. SF-8A4K92) or Mobile No." class="flex-1 border rounded-lg px-3 py-2 text-sm uppercase placeholder:normal-case">
+        <button onclick="searchCustomerOrders()" class="flame-gradient text-white font-bold px-4 py-2 rounded-lg text-sm">Check</button>
       </div>
-      <div id="customerOrdersList" class="overflow-y-auto space-y-3 flex-1 pr-1"></div>
+      <div id="customerOrdersList" class="overflow-y-auto space-y-4 flex-1 pr-1"></div>
     </div>
   </div>
 
@@ -131,7 +154,7 @@
   <!-- Firebase & Store Logic -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-    import { getFirestore, collection, onSnapshot, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+    import { getFirestore, collection, onSnapshot, addDoc, updateDoc, doc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
     const firebaseConfig = {
       apiKey: "AIzaSyApSgjUgr4B3nux_i4gsyqduoXq2zPOP2A",
@@ -147,7 +170,9 @@
 
     let allProducts = [];
     let allOrders = [];
+    let allReviews = [];
     let cart = {};
+    let reviewImagesMap = {}; // { docId: base64 }
 
     onSnapshot(collection(db, "products"), (snapshot) => {
       allProducts = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
@@ -161,6 +186,12 @@
       if (!document.getElementById("trackModal").classList.contains("hidden")) {
         searchCustomerOrders();
       }
+    });
+
+    onSnapshot(collection(db, "reviews"), (snapshot) => {
+      allReviews = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
+        .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+      renderProducts();
     });
 
     window.switchMainImage = function(prodId, imgSrc) {
@@ -185,15 +216,29 @@
         const selectedQty = cart[p.id] || 1;
         const imgs = p.images && p.images.length ? p.images : (p.image ? [p.image] : ['https://via.placeholder.com/300?text=Suchitra+Flame']);
 
+        // Calculate Product Star Ratings from customer feedbacks
+        const prodReviews = allReviews.filter(r => r.productIds && r.productIds.includes(p.id));
+        const avgStars = prodReviews.length 
+          ? (prodReviews.reduce((s, r) => s + Number(r.rating), 0) / prodReviews.length).toFixed(1) 
+          : null;
+
         return `
-          <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col justify-between hover:shadow-md transition">
+          <div class="bg-white rounded-xl shadow-sm border ${outOfStock ? 'border-red-300' : 'border-slate-200'} overflow-hidden flex flex-col justify-between hover:shadow-md transition">
             <div>
               <div class="relative h-48 bg-slate-100 flex items-center justify-center overflow-hidden">
-                <img id="main-img-${p.id}" src="${imgs[0]}" alt="${p.name}" class="h-full w-full object-contain p-2">
-                ${p.discount > 0 ? `<span class="absolute top-2 left-2 bg-red-600 text-white text-xs font-bold px-2.5 py-1 rounded-full">-${p.discount}% OFF</span>` : ''}
-                <span class="absolute top-2 right-2 ${outOfStock ? 'bg-slate-700' : 'bg-green-600'} text-white text-[11px] font-semibold px-2 py-0.5 rounded">
-                  ${outOfStock ? 'Out of Stock' : `${p.stock} in stock`}
-                </span>
+                <img id="main-img-${p.id}" src="${imgs[0]}" alt="${p.name}" class="h-full w-full object-contain p-2 ${outOfStock ? 'opacity-60' : ''}">
+                ${p.discount > 0 ? `<span class="absolute top-2 left-2 bg-orange-600 text-white text-xs font-bold px-2.5 py-1 rounded-full">-${p.discount}% OFF</span>` : ''}
+                
+                <!-- Stock Badge WITHOUT showing stock number -->
+                ${outOfStock ? `
+                  <span class="absolute top-2 right-2 bg-red-600 text-white text-xs font-extrabold px-2.5 py-1 rounded shadow">
+                    SOLD OUT
+                  </span>
+                ` : `
+                  <span class="absolute top-2 right-2 bg-green-600 text-white text-[11px] font-semibold px-2 py-0.5 rounded">
+                    In Stock
+                  </span>
+                `}
               </div>
 
               <!-- Multi-Photo Thumbnails -->
@@ -207,7 +252,10 @@
               ` : ''}
 
               <div class="p-4">
-                <h3 class="font-bold text-slate-800 text-base line-clamp-1">${p.name}</h3>
+                <div class="flex justify-between items-start gap-1">
+                  <h3 class="font-bold text-slate-800 text-base line-clamp-1">${p.name}</h3>
+                  ${avgStars ? `<span class="bg-amber-100 text-amber-800 text-xs font-bold px-1.5 py-0.5 rounded flex items-center gap-1 shrink-0"><i class="fa-solid fa-star text-amber-500"></i>${avgStars} (${prodReviews.length})</span>` : ''}
+                </div>
                 <p class="text-xs text-slate-500 mt-1 line-clamp-2">${p.description || ''}</p>
                 <div class="mt-3 flex items-baseline gap-2">
                   <span class="text-xl font-extrabold text-orange-600">₹${p.finalPrice}</span>
@@ -218,7 +266,10 @@
 
             <div class="p-4 pt-0">
               ${outOfStock ? `
-                <button disabled class="w-full bg-slate-200 text-slate-500 font-bold py-2 rounded-lg text-sm cursor-not-allowed">Currently Unavailable</button>
+                <div class="bg-red-50 border border-red-300 text-red-700 rounded-lg p-2.5 text-center">
+                  <p class="font-extrabold text-xs uppercase tracking-wide"><i class="fa-solid fa-circle-exclamation mr-1"></i>SOLD OUT</p>
+                  <p class="text-[11px] font-medium mt-0.5">Item will be available after few days</p>
+                </div>
               ` : `
                 <div class="flex items-center gap-2">
                   <select id="qty-${p.id}" class="border rounded-lg px-2 py-2 text-sm bg-slate-50">
@@ -288,25 +339,98 @@
     window.toggleTrackModal = function() {
       const modal = document.getElementById("trackModal");
       modal.classList.toggle("hidden");
-      const savedPhone = localStorage.getItem("sf_cust_phone");
-      if (savedPhone && !document.getElementById("trackPhoneInput").value) {
-        document.getElementById("trackPhoneInput").value = savedPhone;
+      const savedQuery = localStorage.getItem("sf_last_order_id") || localStorage.getItem("sf_cust_phone");
+      if (savedQuery && !document.getElementById("trackSearchInput").value) {
+        document.getElementById("trackSearchInput").value = savedQuery;
         searchCustomerOrders();
       }
     };
 
+    window.copyOrderId = function() {
+      const idText = document.getElementById("generatedOrderIdDisplay").innerText;
+      navigator.clipboard.writeText(idText);
+      alert("Copied Order ID: " + idText);
+    };
+
+    window.closeSuccessAndTrack = function() {
+      const idText = document.getElementById("generatedOrderIdDisplay").innerText;
+      document.getElementById("orderSuccessModal").classList.add("hidden");
+      document.getElementById("trackModal").classList.remove("hidden");
+      document.getElementById("trackSearchInput").value = idText;
+      searchCustomerOrders();
+    };
+
+    // Compress Customer Review Photo
+    window.compressReviewPhoto = function(event, docId) {
+      const file = event.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement("canvas");
+          const MAX_WIDTH = 450;
+          const scale = Math.min(1, MAX_WIDTH / img.width);
+          canvas.width = img.width * scale;
+          canvas.height = img.height * scale;
+          const ctx = canvas.getContext("2d");
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+          reviewImagesMap[docId] = canvas.toDataURL("image/jpeg", 0.65);
+          const prev = document.getElementById(`rev-prev-${docId}`);
+          if (prev) {
+            prev.src = reviewImagesMap[docId];
+            prev.classList.remove("hidden");
+          }
+        };
+        img.src = e.target.result;
+      };
+      reader.readAsDataURL(file);
+    };
+
+    // Submit Customer Feedback After Order Delivered
+    window.submitCustomerFeedback = async function(e, orderDocId) {
+      e.preventDefault();
+      const order = allOrders.find(o => o.id === orderDocId);
+      if (!order) return;
+
+      const rating = parseInt(document.getElementById(`rating-${orderDocId}`).value);
+      const comment = document.getElementById(`comment-${orderDocId}`).value.trim();
+      const photo = reviewImagesMap[orderDocId] || "";
+
+      const feedbackObj = {
+        orderDocId: orderDocId,
+        orderCode: order.orderCode || orderDocId.slice(0, 6).toUpperCase(),
+        customerName: order.customerName,
+        customerPhone: order.customerPhone,
+        rating: rating,
+        comment: comment,
+        image: photo,
+        productIds: order.items.map(i => i.productId),
+        productNames: order.items.map(i => i.name),
+        createdAt: new Date().toISOString()
+      };
+
+      await addDoc(collection(db, "reviews"), feedbackObj);
+      await updateDoc(doc(db, "orders", orderDocId), { feedbackSubmitted: true, feedback: feedbackObj });
+      alert("🌟 Thank you! Your feedback and rating have been submitted.");
+    };
+
     window.searchCustomerOrders = function() {
-      const phone = document.getElementById("trackPhoneInput").value.trim();
+      const rawQuery = document.getElementById("trackSearchInput").value.trim().toUpperCase();
       const container = document.getElementById("customerOrdersList");
-      if (!phone) {
-        container.innerHTML = `<p class="text-xs text-slate-400 text-center py-6">Enter the 10-digit phone number used while ordering.</p>`;
+      if (!rawQuery) {
+        container.innerHTML = `<p class="text-xs text-slate-400 text-center py-6">Enter your Unique Order ID (e.g. SF-8A4K92) or 10-digit Mobile Number.</p>`;
         return;
       }
-      localStorage.setItem("sf_cust_phone", phone);
-      const myOrders = allOrders.filter(o => o.customerPhone === phone);
+
+      const myOrders = allOrders.filter(o => 
+        (o.orderCode && o.orderCode.toUpperCase() === rawQuery) ||
+        (o.customerPhone && o.customerPhone === rawQuery) ||
+        o.id.toUpperCase() === rawQuery
+      );
 
       if (myOrders.length === 0) {
-        container.innerHTML = `<p class="text-sm text-slate-500 text-center py-6">No orders found for <b>${phone}</b>.</p>`;
+        container.innerHTML = `<p class="text-sm text-slate-500 text-center py-6">No orders found matching <b>${rawQuery}</b>.</p>`;
         return;
       }
 
@@ -315,19 +439,25 @@
       container.innerHTML = myOrders.map(o => {
         const normStatus = o.status === "Accepted" ? "Order Confirmed" : o.status;
         const stepIdx = steps.indexOf(normStatus);
+        const code = o.orderCode || ("SF-" + o.id.slice(0, 6).toUpperCase());
 
         return `
-          <div class="border rounded-xl p-3.5 bg-slate-50 space-y-2 text-xs">
-            <div class="flex justify-between items-center">
-              <span class="font-bold text-slate-700">${new Date(o.createdAt).toLocaleString()}</span>
-              <span class="px-2.5 py-0.5 rounded-full font-bold ${normStatus === 'Declined' ? 'bg-red-100 text-red-700' : normStatus === 'Pending' ? 'bg-amber-100 text-amber-800' : 'bg-green-100 text-green-800'}">
+          <div class="border rounded-xl p-4 bg-slate-50 space-y-2.5 text-xs">
+            <div class="flex flex-wrap justify-between items-center gap-2 border-b pb-2">
+              <div>
+                <span class="text-[10px] uppercase text-slate-400 font-bold block">Order ID</span>
+                <span class="font-mono font-extrabold text-sm text-orange-600">${code}</span>
+              </div>
+              <span class="px-2.5 py-1 rounded-full font-bold ${normStatus === 'Declined' ? 'bg-red-100 text-red-700' : normStatus === 'Pending' ? 'bg-amber-100 text-amber-800' : 'bg-green-100 text-green-800'}">
                 ${normStatus}
               </span>
             </div>
-            <ul class="text-slate-600 space-y-0.5">
+
+            <p class="text-slate-500">Placed on: ${new Date(o.createdAt).toLocaleString()}</p>
+            <ul class="text-slate-700 font-medium space-y-0.5">
               ${o.items.map(i => `<li>• ${i.name} × ${i.qty} (₹${i.price * i.qty})</li>`).join('')}
             </ul>
-            <p class="font-extrabold text-orange-600 text-sm">Total COD: ₹${o.totalAmount}</p>
+            <p class="font-extrabold text-slate-900 text-sm">Total COD: ₹${o.totalAmount}</p>
 
             ${stepIdx >= 0 ? `
               <div class="pt-2">
@@ -340,10 +470,54 @@
                 </div>
               </div>
             ` : ''}
+
+            <!-- Leave Feedback Section (Only Unlocked After Order Delivered) -->
+            ${normStatus === "Order Delivered" ? (
+              o.feedbackSubmitted ? `
+                <div class="bg-amber-50 border border-amber-200 rounded-lg p-3 mt-2">
+                  <p class="font-bold text-amber-900"><i class="fa-solid fa-star text-amber-500 mr-1"></i>Your Feedback (${o.feedback?.rating || 5}/5 Stars)</p>
+                  <p class="text-slate-600 mt-1">${o.feedback?.comment || ''}</p>
+                  ${o.feedback?.image ? `<img src="${o.feedback.image}" class="h-16 w-16 object-cover rounded mt-2 border">` : ''}
+                </div>
+              ` : `
+                <form onsubmit="submitCustomerFeedback(event, '${o.id}')" class="bg-white border border-orange-200 rounded-xl p-3 mt-3 space-y-2">
+                  <p class="font-bold text-slate-800 text-xs"><i class="fa-solid fa-star text-amber-500 mr-1"></i>Order Delivered! Rate & Review Your Items:</p>
+                  <div>
+                    <label class="block text-[11px] text-slate-500 font-semibold">Select Star Rating:</label>
+                    <select id="rating-${o.id}" class="w-full border rounded-lg px-2.5 py-1.5 text-xs font-bold text-amber-600 mt-0.5">
+                      <option value="5">⭐⭐⭐⭐⭐ (5/5 - Excellent)</option>
+                      <option value="4">⭐⭐⭐⭐ (4/5 - Good)</option>
+                      <option value="3">⭐⭐⭐ (3/5 - Average)</option>
+                      <option value="2">⭐⭐ (2/5 - Poor)</option>
+                      <option value="1">⭐ (1/5 - Very Bad)</option>
+                    </select>
+                  </div>
+                  <textarea id="comment-${o.id}" required rows="2" placeholder="Write your feedback about the product quality..." class="w-full border rounded-lg px-2.5 py-1.5 text-xs"></textarea>
+                  <div>
+                    <label class="block text-[11px] text-slate-500 font-semibold">Add Product Photo (Optional):</label>
+                    <input type="file" accept="image/*" onchange="compressReviewPhoto(event, '${o.id}')" class="w-full text-[11px] mt-0.5">
+                    <img id="rev-prev-${o.id}" class="h-16 w-16 object-cover rounded mt-1.5 hidden border">
+                  </div>
+                  <button type="submit" class="w-full flame-gradient text-white font-bold py-2 rounded-lg text-xs shadow">
+                    Submit Feedback
+                  </button>
+                </form>
+              `
+            ) : ''}
           </div>
         `;
       }).join('');
     };
+
+    // Generate Unique Alphanumeric Order ID (e.g., SF-7K9M2X)
+    function generateUniqueOrderCode() {
+      const chars = "23456789ABCDEFGHJKLMNPQRSTUVWXYZ";
+      let result = "SF-";
+      for (let i = 0; i < 6; i++) {
+        result += chars.charAt(Math.floor(Math.random() * chars.length));
+      }
+      return result;
+    }
 
     window.placeOrder = async function(e) {
       e.preventDefault();
@@ -355,7 +529,9 @@
       btn.innerText = "Placing Order...";
 
       const phoneVal = document.getElementById("custPhone").value.trim();
+      const uniqueOrderCode = generateUniqueOrderCode();
       localStorage.setItem("sf_cust_phone", phoneVal);
+      localStorage.setItem("sf_last_order_id", uniqueOrderCode);
 
       const items = entries.map(([id, qty]) => {
         const p = allProducts.find(item => item.id === id);
@@ -371,6 +547,7 @@
 
       try {
         await addDoc(collection(db, "orders"), {
+          orderCode: uniqueOrderCode,
           customerName: document.getElementById("custName").value.trim(),
           customerPhone: phoneVal,
           customerAddress: document.getElementById("custAddress").value.trim(),
@@ -385,7 +562,9 @@
         cart = {};
         document.getElementById("checkoutForm").reset();
         toggleCart();
-        alert("🎉 Order Placed! Tap 'Track Orders' at the top anytime to see live delivery updates.");
+
+        document.getElementById("generatedOrderIdDisplay").innerText = uniqueOrderCode;
+        document.getElementById("orderSuccessModal").classList.remove("hidden");
       } catch (err) {
         alert("Failed to place order: " + err.message);
       } finally {
